@@ -1,0 +1,31 @@
+{
+  "name": "gk-loader",
+  "version": "0.0.1",
+  "authors": [
+    "EZoUI <ezoservice@icsc.com.tw>"
+  ],
+  "main": "gk-loader.js",
+  "keywords": [
+    "gk",
+    "web-components",
+    "loader"
+  ],
+  "license": "MIT",
+  "homepage": "http://www.ezoui.com/",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "requirejs": "*",
+    "require-css": "*"
+  },
+  "devDependencies": {
+    "gk": "../gk",
+    "gk-google-font": "../gk-google-font"
+  }
+}
