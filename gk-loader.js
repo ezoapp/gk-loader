@@ -2,9 +2,6 @@
 
   'use strict';
 
-  var TAG_NAMES = 'tagNames',
-    ARRAYPROTO = Array.prototype;
-
   var script = getScript(),
     contexts = requirejs.s.contexts,
     contextName = 'gk',
@@ -17,9 +14,21 @@
       },
       skipDataMain: true
     },
-    scriptCfg = parseConfig(script);
+    scriptCfg = parseConfig(script),
+    keys = Object.keys || function (obj) {
+      if (obj !== Object(obj)) {
+        throw new TypeError('Invalid object');
+      }
+      var keys = [];
+      for (var key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          keys.push(key);
+        }
+      }
+      return keys;
+    };
 
-  var context, defined, tagNames;
+  var context, defined;
 
   function parseConfig(script) {
     var gkTags = (script.getAttribute('gk-tags') || '').split(/[\s,]+/),
@@ -43,24 +52,16 @@
     var req = requirejs.config(cfg);
     context = contexts[contextName];
     defined = context.defined;
-    context[TAG_NAMES] = context[TAG_NAMES] || {};
-    tagNames = context[TAG_NAMES];
     return req;
   }
 
   function defineRegistered() {
     each(['_', contextName], function (c) {
       var registry = contexts[c].registry;
-      each(Object.keys(registry), function (module) {
-        var factory = registry[module].factory,
+      each(keys(registry), function (m) {
+        var factory = registry[m].factory,
           clazz = typeof factory === 'function' ? factory() : factory;
-        if (clazz) {
-          contexts[c].defined[module] = clazz;
-          if (isGKComponent(clazz)) {
-            defined[module] = clazz;
-            delete registry[module];
-          }
-        }
+        contexts[c].defined[m] = clazz;
       });
     });
   }
@@ -68,26 +69,12 @@
   function hasUndefined(modules) {
     var undef = false;
     each(modules, function (m) {
-      if (!defined[m]) {
+      if (!(m in defined)) {
         undef = true;
         return true;
       }
     });
     return undef;
-  }
-
-  function registerComponents(modules) {
-    var ret = [];
-    each(modules, function (m) {
-      var tag = basename(m),
-        clazz = defined[m];
-      if (clazz && hasGK() && isGKComponent(clazz)) {
-        tagNames[tag] = m;
-        $.gk.registry(tag, clazz);
-      }
-      ret.push(m);
-    });
-    return ret;
   }
 
   var registryGK = function (modules, callback) {
@@ -96,10 +83,10 @@
     defineRegistered();
     if (hasUndefined(modules)) {
       req(modules, function () {
-        cb(registerComponents(modules));
+        cb();
       });
     } else {
-      cb(registerComponents(modules));
+      cb();
     }
   };
 
@@ -121,32 +108,6 @@
     }
   }
 
-  function extend(obj) {
-    each(ARRAYPROTO.slice.call(arguments, 1), function (source) {
-      if (source) {
-        for (var prop in source) {
-          obj[prop] = source[prop];
-        }
-      }
-    });
-    return obj;
-  }
-
-  function map(obj, iterator, context) {
-    var nativeMap = ARRAYPROTO.map,
-      results = [];
-    if (obj === null) {
-      return results;
-    }
-    if (nativeMap && obj.map === nativeMap) {
-      return obj.map(iterator, context);
-    }
-    each(obj, function (value, index, list) {
-      results.push(iterator.call(context, value, index, list));
-    });
-    return results;
-  }
-
   function isFunction(obj) {
     return typeof obj === 'function';
   }
@@ -163,12 +124,8 @@
     return $ && $.gk;
   }
 
-  function isGKComponent(m) {
-    return m.template && m.script;
-  }
-
   function initGK() {
-    if (hasGK()) {
+    if ((scriptCfg.init === 'true' || scriptCfg.init === true) && hasGK()) {
       $.gk.init();
     }
   }
