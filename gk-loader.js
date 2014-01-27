@@ -5,11 +5,12 @@
   var script = getScript(),
     contexts = requirejs.s.contexts,
     contextName = 'gk',
+    componentsDir = 'bower_components',
     requireConfig = {
       context: contextName,
       map: {
         '*': {
-          css: 'require-css/css'
+          '@css': componentsDir + '/require-css/css'
         }
       },
       skipDataMain: true
@@ -31,12 +32,20 @@
   var context, defined;
 
   function parseConfig(script) {
-    var gkTags = (script.getAttribute('gk-tags') || '').split(/[\s,]+/),
-      baseUrl = script.getAttribute('baseUrl') || dirname(dirname(script.src)),
+    var components = (script.getAttribute('components') || '').split(/[\s,]+/),
+      gkTags = (script.getAttribute('gk-tags') || '').split(/[\s,]+/),
       init = script.getAttribute('init') || 'true',
+      baseUrl = script.getAttribute('baseUrl'),
       callback = script.getAttribute('callback'),
-      cfg = {};
-    cfg.gkTags = gkTags;
+      cfg = {},
+      convertPath = function (components) {
+        var ret = [];
+        each(components, function (c) {
+          ret.push(c[0] === '.' ? c : componentsDir + '/' + c);
+        });
+        return ret;
+      };
+    cfg.components = convertPath(components).concat(convertPath(gkTags));
     cfg.init = init;
     baseUrl && (cfg.baseUrl = baseUrl);
     callback && (cfg.callback = callback);
@@ -90,8 +99,8 @@
     }
   };
 
-  if (scriptCfg.gkTags.length) {
-    registryGK(scriptCfg.gkTags, function () {
+  if (scriptCfg.components.length) {
+    registryGK(scriptCfg.components, function () {
       initGK();
       scriptCfg.callback && new Function('return ' + scriptCfg.callback)()();
     });
@@ -110,14 +119,6 @@
 
   function isFunction(obj) {
     return typeof obj === 'function';
-  }
-
-  function dirname(s) {
-    return s.split('?')[0].split('/').slice(0, -1).join('/') + '/';
-  }
-
-  function basename(s) {
-    return s.split('?')[0].split('/').slice(-1)[0];
   }
 
   function hasGK() {
