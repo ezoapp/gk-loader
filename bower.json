@@ -12,7 +12,7 @@
   ],
   "license": "MIT",
   "homepage": "http://www.ezoui.com/",
-  "private": true,
+  "private": false,
   "ignore": [
     "**/.*",
     "node_modules",
@@ -21,11 +21,9 @@
     "tests"
   ],
   "dependencies": {
-    "requirejs": "*",
-    "require-css": "*"
-  },
-  "devDependencies": {
-    "gk": "../gk",
-    "gk-google-font": "../gk-google-font"
+    "requirejs": "master",
+    "require-css": "master",
+    "require-text": "https://github.com/requirejs/text.git#master",
+    "gk": "../gk"
   }
 }
