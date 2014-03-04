@@ -32,8 +32,8 @@
         '*': {
           '@css': componentBase + '/require-css/css',
           '@text': componentBase + '/require-text/text',
-          '@html': componentBase + '/gk-loader/element/loader',
-          '@wdgt': componentBase + '/gk-loader/widget/loader'
+          '@html': componentBase + '/gk-loader/element/loader.min',
+          '@wdgt': componentBase + '/gk-loader/widget/loader.min'
         }
       },
       skipDataMain: true

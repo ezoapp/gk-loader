@@ -9,9 +9,6 @@ define(function () {
 
   function keys() {
     var f = Object.keys || function (obj) {
-        if (obj !== Object(obj)) {
-          throw new TypeError('Invalid object');
-        }
         var ret = [];
         for (var key in obj) {
           if (obj.hasOwnProperty(key)) {
@@ -48,11 +45,10 @@ define(function () {
   }
 
   function codeForRegister(template) {
-    return 'function registerElement(name,clazz){' +
+    return 'function registerElement(n,c){' +
       keys.toString() +
-      gkClass.toString() +
-      'var template=\'' + template + '\';' +
-      '$.gk.registry(name,gkClass(template,clazz));' +
+      gk.toString() +
+      '$.gk.registry(n,gk(\'' + template + '\',c));' +
       '}';
   }
 
@@ -72,10 +68,10 @@ define(function () {
       '});';
   }
 
-  function gkClass(t, c) {
+  function gk(t, c) {
     var props = keys(c || {}),
       sc = function () {
-        for (var i = 0, l = props.length; i < l; i++) {
+        for (var i = 0, l = props.length; i < l; i += 1) {
           this[props[i]] = c[props[i]];
         }
       };
