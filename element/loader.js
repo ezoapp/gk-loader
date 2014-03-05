@@ -20,16 +20,6 @@ define(function () {
     return f.apply(null, arguments);
   }
 
-  function each(ary, func) {
-    if (ary) {
-      for (var i = 0, len = ary.length; i < len; i += 1) {
-        if (ary[i] && func(ary[i], i, ary)) {
-          break;
-        }
-      }
-    }
-  }
-
   function trimHtml(s) {
     return s.replace(/<!--[\s\S]*?-->/gm, '').replace(/>\s+</gm, '><');
   }
@@ -52,17 +42,8 @@ define(function () {
       '}';
   }
 
-  function codeForConfig(shim) {
-    return 'requirejs.config(' +
-      JSON.stringify({
-        context: 'gk',
-        shim: shim
-      }) +
-      ');';
-  }
-
   function wholeCode(config) {
-    return trimNewline((keys(config.shim).length ? codeForConfig(config.shim) : '') + config.script) +
+    return trimNewline(config.script) +
       'define(' + JSON.stringify(config.deps) + ', function(' + config.names.join() + '){' +
       config.moduleText +
       '});';
@@ -82,42 +63,25 @@ define(function () {
   }
 
   function processScripts($scripts, config) {
-    var shim = {},
-      nameMap = {},
-      addScript = function (name, depends, s) {
-        config.deps.push(s);
-        if (name) {
-          config.names.push(name);
-          nameMap[name] = s;
-        }
-        if (depends) {
-          shim[s] = depends.split(/[\s,]+/);
-        }
-      };
+    var addScript = function (s, name) {
+      config.deps.push(s);
+      if (name) {
+        config.names.push(name);
+      }
+    };
     $scripts.each(function (idx, script) {
-      var id = script.getAttribute('id'),
+      var path = script.getAttribute('path'),
         src = script.getAttribute('src'),
-        name = script.getAttribute('name'),
-        depends = script.getAttribute('depends');
-      if (id) {
-        addScript(name, depends, id);
+        name = script.getAttribute('var');
+      if (path) {
+        addScript(path, name);
       } else if (src) {
         src = absoluteUrl(config.moduleId, src, 'js');
-        addScript(name, depends, src);
+        addScript(src, name);
       } else {
         config.script += script.text;
       }
     });
-    each(keys(shim), function (name) {
-      each(shim[name], function (test, idx) {
-        each(keys(nameMap), function (find) {
-          if (find === test) {
-            shim[name][idx] = nameMap[find];
-          }
-        });
-      });
-    });
-    config.shim = shim;
   }
 
   function processLinkElements($linkEles, config) {
@@ -161,7 +125,6 @@ define(function () {
           $module = $ele.children('script'),
           config = {
             deps: ['require', 'exports', 'module'],
-            shim: {},
             names: ['require', 'exports', 'module'],
             moduleId: name,
             template: '',
