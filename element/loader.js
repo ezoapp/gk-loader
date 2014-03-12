@@ -7,19 +7,6 @@ define(function () {
     normalize = urllib.normalize,
     absolute = urllib.absolute;
 
-  function keys() {
-    var f = Object.keys || function (obj) {
-        var ret = [];
-        for (var key in obj) {
-          if (obj.hasOwnProperty(key)) {
-            ret.push(key);
-          }
-        }
-        return ret;
-      };
-    return f.apply(null, arguments);
-  }
-
   function trimHtml(s) {
     return s.replace(/<!--[\s\S]*?-->/gm, '').replace(/>\s+</gm, '><');
   }
@@ -36,7 +23,6 @@ define(function () {
 
   function codeForRegister(template) {
     return 'function registerElement(n,c){' +
-      keys.toString() +
       gk.toString() +
       '$.gk.registry(n,gk(\'' + template + '\',c));' +
       '}';
@@ -44,13 +30,13 @@ define(function () {
 
   function wholeCode(config) {
     return trimNewline(config.script) +
-      'define(' + JSON.stringify(config.deps) + ', function(' + config.names.join() + '){' +
+      'define(' + JSON.stringify(config.deps) + ', function(' + config.vars.join() + '){' +
       config.moduleText +
       '});';
   }
 
   function gk(t, c) {
-    var props = keys(c || {}),
+    var props = Object.keys(c || {}),
       sc = function () {
         for (var i = 0, l = props.length; i < l; i += 1) {
           this[props[i]] = c[props[i]];
@@ -63,21 +49,21 @@ define(function () {
   }
 
   function processScripts($scripts, config) {
-    var addScript = function (s, name) {
+    var addScript = function (s, var_) {
       config.deps.push(s);
-      if (name) {
-        config.names.push(name);
+      if (var_) {
+        config.vars.push(var_);
       }
     };
     $scripts.each(function (idx, script) {
       var path = script.getAttribute('path'),
         src = script.getAttribute('src'),
-        name = script.getAttribute('var');
+        var_ = script.getAttribute('var');
       if (path) {
-        addScript(path, name);
+        addScript(path, var_);
       } else if (src) {
         src = absoluteUrl(config.moduleId, src, 'js');
-        addScript(src, name);
+        addScript(src, var_);
       } else {
         config.script += script.text;
       }
@@ -86,9 +72,14 @@ define(function () {
 
   function processLinkElements($linkEles, config) {
     $linkEles.each(function (idx, link) {
-      var href = link.getAttribute('href');
+      var rel = link.getAttribute('rel'),
+        href = link.getAttribute('href');
       if (href) {
-        config.deps.push(absoluteUrl(config.moduleId, href, 'html', '@html!'));
+        if (rel === 'import') {
+          config.deps.push(absoluteUrl(config.moduleId, href, 'html', '@html!'));
+        } else if (rel === 'stylesheet') {
+          config.deps.push(absoluteUrl(config.moduleId, href, 'css', '@css!'));
+        }
       }
     });
   }
@@ -100,12 +91,7 @@ define(function () {
     }
     $template = $('<div>' + $template[0].innerHTML + '</div>');
     $links = $template.children('link');
-    $links.each(function (idx, link) {
-      var href = link.getAttribute('href');
-      if (href) {
-        config.deps.push(absoluteUrl(config.moduleId, href, 'css', '@css!'));
-      }
-    });
+    processLinkElements($links, config);
     $links.remove();
     config.template = trimHtml(trimNewline($template[0].innerHTML));
   }

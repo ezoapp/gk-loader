@@ -8,24 +8,40 @@
     };
   }
 
-  var keys = Object.keys || function (obj) {
-      if (obj !== Object(obj)) {
-        throw new TypeError('Invalid object');
+  Object.keys = Object.keys || (function () {
+    var hasOwnProperty = Object.prototype.hasOwnProperty,
+      hasDontEnumBug = !{
+        toString: null
+      }.propertyIsEnumerable("toString"),
+      DontEnums = [
+        'toString', 'toLocaleString', 'valueOf', 'hasOwnProperty',
+        'isPrototypeOf', 'propertyIsEnumerable', 'constructor'
+      ],
+      DontEnumsLength = DontEnums.length;
+    return function (o) {
+      if (typeof o != "object" && typeof o != "function" || o === null)
+        throw new TypeError("Object.keys called on a non-object");
+      var result = [];
+      for (var name in o) {
+        if (hasOwnProperty.call(o, name))
+          result.push(name);
       }
-      var ret = [];
-      for (var key in obj) {
-        if (obj.hasOwnProperty(key)) {
-          ret.push(key);
+      if (hasDontEnumBug) {
+        for (var i = 0; i < DontEnumsLength; i++) {
+          if (hasOwnProperty.call(o, DontEnums[i]))
+            result.push(DontEnums[i]);
         }
       }
-      return ret;
+      return result;
     };
+  })();
 
   var script = getScript(),
     contexts = requirejs.s.contexts,
     contextName = 'gk',
     currDir = dirname(window.location.pathname),
     componentBase = normalize(script.src + '/../../'),
+    defaultPkg = componentBase + '/gk-jqm1.4/',
     requireConfig = {
       context: contextName,
       map: {
@@ -76,7 +92,7 @@
   function defineRegistered() {
     each(['_', contextName], function (c) {
       var registry = contexts[c].registry;
-      each(keys(registry), function (m) {
+      each(Object.keys(registry), function (m) {
         var factory = registry[m].factory,
           clazz = typeof factory === 'function' ? factory() : factory;
         contexts[c].defined[m] = clazz;
@@ -96,15 +112,21 @@
   }
 
   function toAbsolutePath(components) {
-    var ret = [];
-    each(components, function (c) {
+    each(components, function (c, i) {
       c = absolute(c);
       if (c.endsWith('.html')) {
         c = '@html!' + c.substr(0, c.length - 5);
       }
-      ret.push(c);
+      components[i] = c;
     });
-    return ret;
+    return components;
+  }
+
+  function tagsToComponents(tags) {
+    each(tags, function (t, i) {
+      tags[i] = defaultPkg + t + '.html';
+    })
+    return tags;
   }
 
   function registryGK(modules, callback) {
@@ -121,7 +143,14 @@
     }
   }
 
-  var components = (script.getAttribute('components') || script.getAttribute('gk-tags') || '').split(/[\s,]+/);
+  var comAttr = script.getAttribute('components'),
+    gkTagsAttr = script.getAttribute('gk-tags'),
+    components;
+  if (comAttr) {
+    components = comAttr.split(/[\s,]+/);
+  } else if (gkTagsAttr) {
+    components = tagsToComponents(gkTagsAttr.split(/[\s,]+/));
+  }
   if (components.length) {
     registryGK(components, function () {
       initGK();
@@ -135,11 +164,16 @@
     isAbsolute: isAbsolute
   };
 
-  function each(ary, func) {
-    if (ary) {
-      for (var i = 0, len = ary.length; i < len; i += 1) {
-        if (ary[i] && func(ary[i], i, ary)) {
-          break;
+  function each(ary, iterator) {
+    var nativeForEach = Array.prototype.forEach,
+      breaker = {};
+    if (ary == null) return ary;
+    if (nativeForEach && ary.forEach === nativeForEach) {
+      ary.forEach(iterator);
+    } else {
+      for (var i = 0, l = ary.length; i < l; i += 1) {
+        if (iterator.call(null, ary[i], i, ary) === breaker) {
+          return;
         }
       }
     }

@@ -24,6 +24,7 @@
     "requirejs": "master",
     "require-css": "master",
     "require-text": "https://github.com/requirejs/text.git#master",
-    "jquery.gk": "../jquery.gk"
+    "jquery.gk": "../jquery.gk",
+    "gk-jqm1.4": "../gk-jqm1.4"
   }
 }
