@@ -23,8 +23,7 @@ define(function () {
 
   function codeForRegister(template) {
     return 'function registerElement(n,c){' +
-      gk.toString() +
-      '$.gk.registry(n,gk(\'' + template + '\',c));' +
+      '$.gk.registerElement(n,\'' + template + '\',c)' +
       '}';
   }
 
@@ -33,19 +32,6 @@ define(function () {
       'define(' + JSON.stringify(config.deps) + ', function(' + config.vars.join() + '){' +
       config.moduleText +
       '});';
-  }
-
-  function gk(t, c) {
-    var props = Object.keys(c || {}),
-      sc = function () {
-        for (var i = 0, l = props.length; i < l; i += 1) {
-          this[props[i]] = c[props[i]];
-        }
-      };
-    return {
-      template: t,
-      script: sc
-    };
   }
 
   function processScripts($scripts, config) {
@@ -111,7 +97,7 @@ define(function () {
           $module = $ele.children('script'),
           config = {
             deps: ['require', 'exports', 'module'],
-            names: ['require', 'exports', 'module'],
+            vars: ['require', 'exports', 'module'],
             moduleId: name,
             template: '',
             moduleText: '',

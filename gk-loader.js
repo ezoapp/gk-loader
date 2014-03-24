@@ -48,24 +48,27 @@
         '*': {
           '@css': componentBase + '/require-css/css',
           '@text': componentBase + '/require-text/text',
-          '@html': componentBase + '/gk-loader/element/loader.min',
-          '@wdgt': componentBase + '/gk-loader/widget/loader.min'
+          '@html': componentBase + '/gk-loader/element/loader',
+          '@wdgt': componentBase + '/gk-loader/widget/loader'
         }
       },
       skipDataMain: true
     },
     scriptCfg = parseConfig(script);
 
-  var context, defined;
+  var context, defined, status;
 
   function parseConfig(script) {
-    var init = script.getAttribute('init') || 'true',
+    var init = script.getAttribute('init'),
       baseUrl = script.getAttribute('baseUrl') || componentBase,
-      callback = script.getAttribute('callback'),
+      callback = function () {
+        var cb = script.getAttribute('callback');
+        cb && (new Function('return ' + cb)()());
+      },
       cfg = {};
     cfg.init = init;
     cfg.baseUrl = baseUrl;
-    callback && (cfg.callback = callback);
+    cfg.callback = callback;
     return cfg;
   }
 
@@ -86,6 +89,7 @@
     context = contexts[contextName];
     overwriteMethod(context);
     defined = context.defined;
+    (context.status = {}) && (status = context.status);
     return req;
   }
 
@@ -93,9 +97,9 @@
     each(['_', contextName], function (c) {
       var registry = contexts[c].registry;
       each(Object.keys(registry), function (m) {
-        var factory = registry[m].factory,
-          clazz = typeof factory === 'function' ? factory() : factory;
-        contexts[c].defined[m] = clazz;
+        var factory = registry[m].factory;
+        defined[m] = typeof factory === 'function' ? factory() : factory;
+        delete registry[m];
       });
     });
   }
@@ -125,8 +129,31 @@
   function tagsToComponents(tags) {
     each(tags, function (t, i) {
       tags[i] = defaultPkg + t + '.html';
-    })
+    });
     return tags;
+  }
+
+  function setLoading(modules) {
+    each(modules, function (m) {
+      if (!status[m] || status[m] !== 'done') {
+        status[m] = 'loading';
+      }
+    });
+  }
+
+  function setDone(modules) {
+    each(modules, function (m) {
+      status[m] = 'done';
+    });
+  }
+
+  function initGK() {
+    each(Object.keys(status), function (m) {
+      if (status[m] !== 'done') {
+        return;
+      }
+    });
+    $.gk.init();
   }
 
   function registryGK(modules, callback) {
@@ -135,39 +162,58 @@
     defineRegistered();
     modules = toAbsolutePath(modules);
     if (hasUndefined(modules)) {
+      setLoading(modules);
       req(modules, function () {
-        cb();
+        setDone(modules);
+        cb(initGK);
       });
     } else {
-      cb();
+      cb(initGK);
     }
   }
 
-  var comAttr = script.getAttribute('components'),
-    gkTagsAttr = script.getAttribute('gk-tags'),
-    components;
-  if (comAttr) {
-    components = comAttr.split(/[\s,]+/);
-  } else if (gkTagsAttr) {
-    components = tagsToComponents(gkTagsAttr.split(/[\s,]+/));
-  }
-  if (components.length) {
-    registryGK(components, function () {
-      initGK();
-      scriptCfg.callback && new Function('return ' + scriptCfg.callback)()();
-    });
-  }
+  $.gk.registerElement = function (name, template, clazz) {
+    $.gk.registry(name, {
+      template: template,
+      script: function () {
+        var props = Object.keys(clazz || {});
+        for (var i = 0, l = props.length; i < l; i += 1) {
+          this[props[i]] = clazz[props[i]];
+        }
+      }
+    })
+  };
   window.registryGK = registryGK;
   window.registryGK.urllib = {
     normalize: normalize,
     absolute: absolute,
     isAbsolute: isAbsolute
   };
+  var comAttr = script.getAttribute('components'),
+    gkTagsAttr = script.getAttribute('gk-tags'),
+    components = [];
+  if (comAttr) {
+    components = comAttr.split(/[\s,]+/);
+  } else if (gkTagsAttr) {
+    components = tagsToComponents(gkTagsAttr.split(/[\s,]+/));
+  }
+  if (components.length) {
+    registryGK(components, function (init) {
+      if (scriptCfg.init === null || (scriptCfg.init && scriptCfg.init !== 'false')) {
+        init();
+      }
+      scriptCfg.callback();
+    });
+  } else {
+    scriptCfg.callback();
+  }
 
   function each(ary, iterator) {
     var nativeForEach = Array.prototype.forEach,
       breaker = {};
-    if (ary == null) return ary;
+    if (ary === null) {
+      return ary;
+    }
     if (nativeForEach && ary.forEach === nativeForEach) {
       ary.forEach(iterator);
     } else {
@@ -226,16 +272,6 @@
   function isAbsolute(s) {
     s = s.toLowerCase();
     return s.indexOf('http://') === 0 || s.indexOf('https://') === 0 || s.indexOf('data:') === 0 || s[0] === '/';
-  }
-
-  function hasGK() {
-    return $ && $.gk;
-  }
-
-  function initGK() {
-    if ((scriptCfg.init === 'true' || scriptCfg.init === true) && hasGK()) {
-      $.gk.init();
-    }
   }
 
   function getScript() {

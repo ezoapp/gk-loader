@@ -2,7 +2,8 @@ define(function () {
 
   'use strict';
 
-  var buildMap = {};
+  var widgetExt = '.js',
+    buildMap = {};
 
   function loadFile(path) {
     var fs = require.nodeRequire('fs'),
@@ -15,7 +16,7 @@ define(function () {
 
   return {
     load: function (name, require, onload, config) {
-      buildMap[name] = loadFile(require.toUrl(name + '.js'));
+      buildMap[name] = loadFile(require.toUrl(name + widgetExt));
       onload();
     },
 
