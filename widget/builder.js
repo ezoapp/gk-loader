@@ -1,29 +1,29 @@
-define(function () {
+define(function (localRequire, exports, module) {
 
   'use strict';
+
+  var utils = require.nodeRequire(module.uri + '/../../lib/utils'),
+    uglifyjs = require.nodeRequire('uglify-js');
 
   var widgetExt = '.js',
     buildMap = {};
 
-  function loadFile(path) {
-    var fs = require.nodeRequire('fs'),
-      file = fs.readFileSync(path, 'utf8');
-    if (file.indexOf('\uFEFF') === 0) {
-      return file.substring(1);
-    }
-    return file;
+  function generateCode(src) {
+    return uglifyjs.minify('define(function(){return ' + src + '})', {
+      fromString: true
+    }).code;
   }
 
   return {
-    load: function (name, require, onload, config) {
-      buildMap[name] = loadFile(require.toUrl(name + widgetExt));
-      onload();
+    load: function (name, req, onload, config) {
+      var code = generateCode(utils.loadFile(req.toUrl(name + widgetExt)));
+      buildMap[name] = code;
+      onload.fromText(code);
     },
 
     write: function (pluginName, moduleName, write) {
       if (moduleName in buildMap) {
-        write("define('" + pluginName + "!" + moduleName +
-          "', function () { return " + buildMap[moduleName] + ";});\n");
+        write.asModule(pluginName + '!' + moduleName, buildMap[moduleName]);
       }
     }
   };

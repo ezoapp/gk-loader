@@ -36,14 +36,54 @@
     };
   })();
 
+  var urllib = {
+    dirname: function (url, level) {
+      return url.split('?')[0].split('/').slice(0, level || -1).join('/');
+    },
+    normalize: function (path) {
+      var parts = path.split('://'),
+        host = '',
+        result = [],
+        p;
+      if (parts.length > 1) {
+        host = parts[0] + '://' + parts[1].split('/')[0];
+        path = path.substr(host.length);
+      }
+      path = path.replace(/\/+/g, '/');
+      if (path.indexOf('/') === 0) {
+        host && (host += '/');
+        path = path.substr(1);
+      }
+      parts = path.split('/');
+      while (p = parts.shift()) {
+        if (p === '..') {
+          result.pop();
+        } else if (p !== '.') {
+          result.push(p);
+        }
+      }
+      return host + result.join('/');
+    },
+    isAbsolute: function (s) {
+      s = s.toLowerCase();
+      return s.indexOf('http://') === 0 || s.indexOf('https://') === 0 || s.indexOf('data:') === 0 || s[0] === '/';
+    },
+    absolute: function (url, base) {
+      if (!urllib.isAbsolute(url)) {
+        url = urllib.normalize((base || '') + '/' + url);
+      }
+      return url;
+    }
+  };
+
   var script = getScript(),
     contexts = requirejs.s.contexts,
     contextName = 'gk',
     wndloc = window.location,
     locorigin = wndloc.origin,
-    currloc = dirname(wndloc.pathname),
-    absComponentBase = normalize(script.src + '/../../'),
-    componentBase = absComponentBase.indexOf(locorigin) === 0 ? absComponentBase.substr(locorigin.length + 1) : absComponentBase,
+    currloc = urllib.dirname(wndloc.pathname),
+    absComponentBase = urllib.normalize(script.src + '/../../'),
+    componentBase = script.getAttribute('componentBase') || (absComponentBase.indexOf(locorigin) === 0 ? absComponentBase.substr(locorigin.length + 1) : absComponentBase),
     defaultPkg = componentBase + '/gk-jqm1.4/',
     requireConfig = {
       context: contextName,
@@ -90,20 +130,9 @@
     return req;
   }
 
-  function defineRegistered() {
-    each(['_', contextName], function (c) {
-      var registry = contexts[c].registry;
-      each(Object.keys(registry), function (m) {
-        var factory = registry[m].factory;
-        defined[m] = typeof factory === 'function' ? factory() : factory;
-        delete registry[m];
-      });
-    });
-  }
-
-  function hasUndefined(modules) {
+  function hasUndefined(moduleIds) {
     var undef = false;
-    each(modules, function (m) {
+    each(moduleIds, function (m) {
       if (!(m in defined)) {
         undef = true;
         return true;
@@ -112,15 +141,28 @@
     return undef;
   }
 
-  function toAbsolutePath(components) {
-    each(components, function (c, i) {
-      c = absolute(c);
+  function toPaths(components) {
+    var ret = [];
+    each(components, function (c) {
+      c = urllib.absolute(c, currloc);
       if (c.endsWith('.html')) {
         c = '@html!' + c.substr(0, c.length - 5);
       }
-      components[i] = c;
+      ret.push(c);
     });
-    return components;
+    return ret;
+  }
+
+  function toModuleIds(components) {
+    var ret = [];
+    each(components, function (c) {
+      c = urllib.absolute(c, currloc);
+      if (c.endsWith('.html')) {
+        c = c.substr(0, c.length - 5);
+      }
+      ret.push(c);
+    });
+    return ret;
   }
 
   function tagsToComponents(tags) {
@@ -130,16 +172,16 @@
     return tags;
   }
 
-  function setLoading(modules) {
-    each(modules, function (m) {
+  function setLoading(moduleIds) {
+    each(moduleIds, function (m) {
       if (!status[m] || status[m] !== 'done') {
         status[m] = 'loading';
       }
     });
   }
 
-  function setDone(modules) {
-    each(modules, function (m) {
+  function setDone(moduleIds) {
+    each(moduleIds, function (m) {
       status[m] = 'done';
     });
   }
@@ -155,13 +197,13 @@
 
   function registryGK(modules, callback) {
     var req = configure(requireConfig),
-      cb = isFunction(callback) ? callback : function () {};
-    defineRegistered();
-    modules = toAbsolutePath(modules);
-    if (hasUndefined(modules)) {
-      setLoading(modules);
-      req(modules, function () {
-        setDone(modules);
+      cb = isFunction(callback) ? callback : function () {},
+      paths = toPaths(modules),
+      ids = toModuleIds(modules);
+    if (hasUndefined(ids)) {
+      setLoading(ids);
+      req(paths, function () {
+        setDone(ids);
         cb(initGK);
       });
     } else {
@@ -170,22 +212,6 @@
   }
 
   window.registryGK = registryGK;
-  window.registryGK.urllib = {
-    normalize: normalize,
-    absolute: absolute,
-    isAbsolute: isAbsolute
-  };
-  window.registryGK.registerElement = function (name, tpl, clazz) {
-    $.gk.registry(name, {
-      template: tpl,
-      script: function () {
-        var props = Object.keys(clazz || {});
-        for (var i = 0, l = props.length; i < l; i += 1) {
-          this[props[i]] = clazz[props[i]];
-        }
-      }
-    });
-  };
   var comAttr = script.getAttribute('components'),
     gkTagsAttr = script.getAttribute('gk-tags'),
     components = [];
@@ -194,16 +220,12 @@
   } else if (gkTagsAttr) {
     components = tagsToComponents(gkTagsAttr.split(/[\s,]+/));
   }
-  if (components.length) {
-    registryGK(components, function (init) {
-      if (scriptCfg.init === null || (scriptCfg.init && scriptCfg.init !== 'false')) {
-        init();
-      }
-      scriptCfg.callback();
-    });
-  } else {
+  registryGK(components, function (init) {
+    if (scriptCfg.init === null || (scriptCfg.init && scriptCfg.init !== 'false')) {
+      init();
+    }
     scriptCfg.callback();
-  }
+  });
 
   function each(ary, iterator) {
     var nativeForEach = Array.prototype.forEach,
@@ -222,49 +244,8 @@
     }
   }
 
-  function dirname(url, level) {
-    return url.split('?')[0].split('/').slice(0, level || -1).join('/');
-  }
-
-  function normalize(path) {
-    var parts = path.split('://'),
-      host = '',
-      result = [],
-      p;
-    if (parts.length > 1) {
-      host = parts[0] + '://' + parts[1].split('/')[0];
-      path = path.substr(host.length);
-    }
-    path = path.replace(/\/+/g, '/');
-    if (path.indexOf('/') === 0) {
-      host && (host += '/');
-      path = path.substr(1);
-    }
-    parts = path.split('/');
-    while (p = parts.shift()) {
-      if (p === '..') {
-        result.pop();
-      } else if (p !== '.') {
-        result.push(p);
-      }
-    }
-    return host + result.join('/');
-  }
-
-  function absolute(url, base) {
-    if (!isAbsolute(url)) {
-      url = normalize((base || currloc) + '/' + url);
-    }
-    return url;
-  }
-
   function isFunction(obj) {
     return typeof obj === 'function';
-  }
-
-  function isAbsolute(s) {
-    s = s.toLowerCase();
-    return s.indexOf('http://') === 0 || s.indexOf('https://') === 0 || s.indexOf('data:') === 0 || s[0] === '/';
   }
 
   function getScript() {

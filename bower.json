@@ -1,6 +1,5 @@
 {
   "name": "gk-loader",
-  "version": "0.0.1",
   "authors": [
     "EZoUI <ezoservice@icsc.com.tw>"
   ],
@@ -12,18 +11,10 @@
   ],
   "license": "MIT",
   "homepage": "http://www.ezoui.com/",
-  "private": false,
-  "ignore": [
-    "**/.*",
-    "node_modules",
-    "bower_components",
-    "test",
-    "tests"
-  ],
   "dependencies": {
     "requirejs": "master",
     "require-css": "master",
-    "require-text": "https://github.com/requirejs/text.git#master",
-    "jquery.gk": "../jquery.gk"
+    "require-text": "https://github.com/requirejs/text.git#latest",
+    "jquery.gk": "master"
   }
 }

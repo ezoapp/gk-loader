@@ -1,11 +1,62 @@
-(function (define, registryGK, $) {
+(function (define, $) {
 
   'use strict';
 
+  var urllib = {
+    dirname: function (url, level) {
+      return url.split('?')[0].split('/').slice(0, level || -1).join('/');
+    },
+    normalize: function (path) {
+      var parts = path.split('://'),
+        host = '',
+        result = [],
+        p;
+      if (parts.length > 1) {
+        host = parts[0] + '://' + parts[1].split('/')[0];
+        path = path.substr(host.length);
+      }
+      path = path.replace(/\/+/g, '/');
+      if (path.indexOf('/') === 0) {
+        host && (host += '/');
+        path = path.substr(1);
+      }
+      parts = path.split('/');
+      while (p = parts.shift()) {
+        if (p === '..') {
+          result.pop();
+        } else if (p !== '.') {
+          result.push(p);
+        }
+      }
+      return host + result.join('/');
+    },
+    isAbsolute: function (s) {
+      s = s.toLowerCase();
+      return s.indexOf('http://') === 0 || s.indexOf('https://') === 0 || s.indexOf('data:') === 0 || s[0] === '/';
+    },
+    absolute: function (url, base) {
+      if (!urllib.isAbsolute(url)) {
+        url = urllib.normalize((base || '') + '/' + url);
+      }
+      return url;
+    }
+  };
+
   var elementExt = '.html',
-    urllib = registryGK.urllib,
     normalize = urllib.normalize,
     absolute = urllib.absolute;
+
+  $.gk.registerElement = function (name, tpl, clazz) {
+    $.gk.registry(name, {
+      template: tpl,
+      script: function () {
+        var props = Object.keys(clazz || {});
+        for (var i = 0, l = props.length; i < l; i += 1) {
+          this[props[i]] = clazz[props[i]];
+        }
+      }
+    });
+  };
 
   function trimHtml(s) {
     return s.replace(/<!--[\s\S]*?-->/gm, '').replace(/>\s+</gm, '><');
@@ -15,23 +66,9 @@
     return s.replace(/\s*(\r\n|\n|\r)\s*/gm, '');
   }
 
-  function absoluteUrl(moduleId, url, ext, prefix) {
+  function absoluteId(moduleId, url, ext) {
     url = absolute(url, moduleId + '/../');
-    url = url.substr(0, url.length - ext.length - 1);
-    return (prefix || '') + url;
-  }
-
-  function codeForRegister(template) {
-    return 'function registerElement(n,c){' +
-      'registryGK.registerElement(n,\'' + template + '\',c)' +
-      '}';
-  }
-
-  function wholeCode(config) {
-    return trimNewline(config.script) +
-      'define(' + JSON.stringify(config.deps) + ', function(' + config.vars.join() + '){' +
-      config.moduleText +
-      '});';
+    return url.substr(0, url.length - ext.length - 1);
   }
 
   function processScripts($scripts, config) {
@@ -48,7 +85,7 @@
       if (path) {
         addScript(path, var_);
       } else if (src) {
-        src = absoluteUrl(config.moduleId, src, 'js');
+        src = absoluteId(config.moduleId, src, 'js');
         addScript(src, var_);
       } else {
         config.script += script.text;
@@ -62,9 +99,9 @@
         href = link.getAttribute('href');
       if (href) {
         if (rel === 'import') {
-          config.deps.push(absoluteUrl(config.moduleId, href, 'html', '@html!'));
+          config.deps.push('@html!' + absoluteId(config.moduleId, href, 'html'));
         } else if (rel === 'stylesheet') {
-          config.deps.push(absoluteUrl(config.moduleId, href, 'css', '@css!'));
+          config.deps.push('@css!' + absoluteId(config.moduleId, href, 'css'));
         }
       }
     });
@@ -83,37 +120,51 @@
   }
 
   function processModuleText($module, config) {
-    config.moduleText = codeForRegister(config.template) + ($module.length ? $module[0].text : '');
+    var generateRegCode = function (template) {
+      return 'function registerElement(n,c){$.gk.registerElement(n,\'' + template + '\',c)}';
+    };
+    config.moduleText = generateRegCode(config.template) + ($module.length ? $module[0].text : '');
+  }
+
+  function wrapUp(config) {
+    return trimNewline(config.script) +
+      'define(' + JSON.stringify(config.deps) + ', function(' + config.vars.join() + '){' +
+      config.moduleText +
+      '});';
+  }
+
+  function generateCode(src, config) {
+    var $html = $('<div>' + src + '</div>'),
+      $scripts = $html.children('script'),
+      $linkEles = $html.children('link'),
+      $ele = $html.children('element'),
+      $template = $ele.children('template'),
+      $module = $ele.children('script');
+    processScripts($scripts, config);
+    processLinkElements($linkEles, config);
+    processTemplate($template, config);
+    processModuleText($module, config);
+    return wrapUp(config);
   }
 
   define({
-
-    load: function (name, require, onload) {
-      require(['@text!' + name + elementExt], function (text) {
-        var $html = $('<div>' + text + '</div>'),
-          $scripts = $html.children('script'),
-          $linkEles = $html.children('link'),
-          $ele = $html.children('element'),
-          $template = $ele.children('template'),
-          $module = $ele.children('script'),
-          config = {
-            deps: ['require', 'exports', 'module'],
-            vars: ['require', 'exports', 'module'],
-            moduleId: name,
-            template: '',
-            moduleText: '',
-            script: ''
-          };
-        processScripts($scripts, config);
-        processLinkElements($linkEles, config);
-        processTemplate($template, config);
-        processModuleText($module, config);
-        onload.fromText(wholeCode(config));
+    load: function (name, require, onload, config) {
+      require(['@text!' + name + elementExt], function (src) {
+        var moduleCfg = {
+          deps: ['require', 'exports', 'module'],
+          vars: ['require', 'exports', 'module'],
+          moduleId: name,
+          template: '',
+          moduleText: '',
+          script: ''
+        };
+        onload.fromText(generateCode(src, moduleCfg));
       });
     },
 
-    normalize: normalize
+    normalize: normalize,
 
+    pluginBuilder: './builder'
   });
 
-}(define, registryGK, jQuery));
+}(define, jQuery));
