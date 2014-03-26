@@ -1,24 +1,26 @@
-define(function () {
+(function (define, registryGK) {
 
   'use strict';
 
   var widgetExt = '.js',
     normalize = registryGK.urllib.normalize;
 
-  function definitionText(data) {
-    return 'define(function(){' +
-      'return ' + data +
-      '});';
+  function text(data) {
+    return 'define(function(){return ' + data + '});';
   }
 
-  return {
+  define({
+
     load: function (name, require, onload) {
       require(['@text!' + name + widgetExt], function (data) {
-        onload.fromText(definitionText(data));
+        onload.fromText(text(data));
       });
     },
-    normalize: normalize,
-    pluginBuilder: './builder'
-  };
 
-});
+    normalize: normalize,
+
+    pluginBuilder: './builder'
+
+  });
+
+}(define, registryGK));

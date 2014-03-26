@@ -12,15 +12,15 @@
     var hasOwnProperty = Object.prototype.hasOwnProperty,
       hasDontEnumBug = !{
         toString: null
-      }.propertyIsEnumerable("toString"),
+      }.propertyIsEnumerable('toString'),
       DontEnums = [
         'toString', 'toLocaleString', 'valueOf', 'hasOwnProperty',
         'isPrototypeOf', 'propertyIsEnumerable', 'constructor'
       ],
       DontEnumsLength = DontEnums.length;
     return function (o) {
-      if (typeof o != "object" && typeof o != "function" || o === null)
-        throw new TypeError("Object.keys called on a non-object");
+      if (typeof o != 'object' && typeof o != 'function' || o === null)
+        throw new TypeError('Object.keys called on a non-object');
       var result = [];
       for (var name in o) {
         if (hasOwnProperty.call(o, name))
@@ -39,11 +39,15 @@
   var script = getScript(),
     contexts = requirejs.s.contexts,
     contextName = 'gk',
-    currDir = dirname(window.location.pathname),
-    componentBase = normalize(script.src + '/../../'),
+    wndloc = window.location,
+    locorigin = wndloc.origin,
+    currloc = dirname(wndloc.pathname),
+    absComponentBase = normalize(script.src + '/../../'),
+    componentBase = absComponentBase.indexOf(locorigin) === 0 ? absComponentBase.substr(locorigin.length + 1) : absComponentBase,
     defaultPkg = componentBase + '/gk-jqm1.4/',
     requireConfig = {
       context: contextName,
+      baseUrl: '/',
       map: {
         '*': {
           '@css': componentBase + '/require-css/css',
@@ -60,21 +64,14 @@
 
   function parseConfig(script) {
     var init = script.getAttribute('init'),
-      baseUrl = script.getAttribute('baseUrl') || componentBase,
       callback = function () {
         var cb = script.getAttribute('callback');
         cb && (new Function('return ' + cb)()());
       },
       cfg = {};
     cfg.init = init;
-    cfg.baseUrl = baseUrl;
     cfg.callback = callback;
     return cfg;
-  }
-
-  function mergedConfig() {
-    scriptCfg.baseUrl && (requireConfig.baseUrl = scriptCfg.baseUrl);
-    return requireConfig;
   }
 
   function overwriteMethod(ctx) {
@@ -157,7 +154,7 @@
   }
 
   function registryGK(modules, callback) {
-    var req = configure(mergedConfig()),
+    var req = configure(requireConfig),
       cb = isFunction(callback) ? callback : function () {};
     defineRegistered();
     modules = toAbsolutePath(modules);
@@ -172,22 +169,22 @@
     }
   }
 
-  $.gk.registerElement = function (name, template, clazz) {
+  window.registryGK = registryGK;
+  window.registryGK.urllib = {
+    normalize: normalize,
+    absolute: absolute,
+    isAbsolute: isAbsolute
+  };
+  window.registryGK.registerElement = function (name, tpl, clazz) {
     $.gk.registry(name, {
-      template: template,
+      template: tpl,
       script: function () {
         var props = Object.keys(clazz || {});
         for (var i = 0, l = props.length; i < l; i += 1) {
           this[props[i]] = clazz[props[i]];
         }
       }
-    })
-  };
-  window.registryGK = registryGK;
-  window.registryGK.urllib = {
-    normalize: normalize,
-    absolute: absolute,
-    isAbsolute: isAbsolute
+    });
   };
   var comAttr = script.getAttribute('components'),
     gkTagsAttr = script.getAttribute('gk-tags'),
@@ -240,7 +237,7 @@
     }
     path = path.replace(/\/+/g, '/');
     if (path.indexOf('/') === 0) {
-      host += '/';
+      host && (host += '/');
       path = path.substr(1);
     }
     parts = path.split('/');
@@ -256,11 +253,7 @@
 
   function absolute(url, base) {
     if (!isAbsolute(url)) {
-      if (base) {
-        url = normalize(base + '/' + url);
-      } else {
-        url = window.location.protocol + '//' + window.location.host + normalize(currDir + '/' + url);
-      }
+      url = normalize((base || currloc) + '/' + url);
     }
     return url;
   }

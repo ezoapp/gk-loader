@@ -1,4 +1,4 @@
-define(function () {
+(function (define, registryGK, $) {
 
   'use strict';
 
@@ -23,7 +23,7 @@ define(function () {
 
   function codeForRegister(template) {
     return 'function registerElement(n,c){' +
-      '$.gk.registerElement(n,\'' + template + '\',c)' +
+      'registryGK.registerElement(n,\'' + template + '\',c)' +
       '}';
   }
 
@@ -86,7 +86,8 @@ define(function () {
     config.moduleText = codeForRegister(config.template) + ($module.length ? $module[0].text : '');
   }
 
-  return {
+  define({
+
     load: function (name, require, onload) {
       require(['@text!' + name + elementExt], function (text) {
         var $html = $('<div>' + text + '</div>'),
@@ -110,7 +111,9 @@ define(function () {
         onload.fromText(wholeCode(config));
       });
     },
-    normalize: normalize
-  };
 
-});
+    normalize: normalize
+
+  });
+
+}(define, registryGK, jQuery));
