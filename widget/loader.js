@@ -14,7 +14,7 @@
       }
       path = path.replace(/\/+/g, '/');
       if (path.indexOf('/') === 0) {
-        host && (host += '/');
+        host += '/';
         path = path.substr(1);
       }
       parts = path.split('/');

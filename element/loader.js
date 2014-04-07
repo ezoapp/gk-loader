@@ -17,7 +17,7 @@
       }
       path = path.replace(/\/+/g, '/');
       if (path.indexOf('/') === 0) {
-        host && (host += '/');
+        host += '/';
         path = path.substr(1);
       }
       parts = path.split('/');
@@ -127,7 +127,7 @@
   }
 
   function wrapUp(config) {
-    return trimNewline(config.script) +
+    return 'var moduleId="' + config.moduleId + '";' + trimNewline(config.script) +
       'define(' + JSON.stringify(config.deps) + ', function(' + config.vars.join() + '){' +
       config.moduleText +
       '});';

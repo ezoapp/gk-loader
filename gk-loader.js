@@ -51,7 +51,7 @@
       }
       path = path.replace(/\/+/g, '/');
       if (path.indexOf('/') === 0) {
-        host && (host += '/');
+        host += '/';
         path = path.substr(1);
       }
       parts = path.split('/');
@@ -83,11 +83,11 @@
     locorigin = wndloc.origin,
     currloc = urllib.dirname(wndloc.pathname),
     absComponentBase = urllib.normalize(script.src + '/../../'),
-    componentBase = script.getAttribute('componentBase') || (absComponentBase.indexOf(locorigin) === 0 ? absComponentBase.substr(locorigin.length + 1) : absComponentBase),
-    defaultPkg = componentBase + '/gk-jqm1.4/',
+    componentBase = script.getAttribute('componentBase') || (absComponentBase.indexOf(locorigin) === 0 ? absComponentBase.substr(locorigin.length) : absComponentBase),
+    defaultPkg = componentBase + '/gk-jquerymobile/',
     requireConfig = {
       context: contextName,
-      baseUrl: '/',
+      baseUrl: script.getAttribute('baseUrl') || './',
       map: {
         '*': {
           '@css': componentBase + '/require-css/css',
@@ -144,7 +144,6 @@
   function toPaths(components) {
     var ret = [];
     each(components, function (c) {
-      c = urllib.absolute(c, currloc);
       if (c.endsWith('.html')) {
         c = '@html!' + c.substr(0, c.length - 5);
       }
