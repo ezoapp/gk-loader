@@ -36,53 +36,13 @@
     };
   })();
 
-  var urllib = {
-    dirname: function (url, level) {
-      return url.split('?')[0].split('/').slice(0, level || -1).join('/');
-    },
-    normalize: function (path) {
-      var parts = path.split('://'),
-        host = '',
-        result = [],
-        p;
-      if (parts.length > 1) {
-        host = parts[0] + '://' + parts[1].split('/')[0];
-        path = path.substr(host.length);
-      }
-      path = path.replace(/\/+/g, '/');
-      if (path.indexOf('/') === 0) {
-        host += '/';
-        path = path.substr(1);
-      }
-      parts = path.split('/');
-      while (p = parts.shift()) {
-        if (p === '..') {
-          result.pop();
-        } else if (p !== '.') {
-          result.push(p);
-        }
-      }
-      return host + result.join('/');
-    },
-    isAbsolute: function (s) {
-      s = s.toLowerCase();
-      return s.indexOf('http://') === 0 || s.indexOf('https://') === 0 || s.indexOf('data:') === 0 || s[0] === '/';
-    },
-    absolute: function (url, base) {
-      if (!urllib.isAbsolute(url)) {
-        url = urllib.normalize((base || '') + '/' + url);
-      }
-      return url;
-    }
-  };
-
   var script = getScript(),
     contexts = requirejs.s.contexts,
     contextName = 'gk',
     wndloc = window.location,
     locorigin = wndloc.origin,
-    currloc = urllib.dirname(wndloc.pathname),
-    absComponentBase = urllib.normalize(script.src + '/../../'),
+    currloc = dirname(wndloc.pathname),
+    absComponentBase = normalize(script.src + '/../../'),
     componentBase = script.getAttribute('componentBase') || (absComponentBase.indexOf(locorigin) === 0 ? absComponentBase.substr(locorigin.length) : absComponentBase),
     defaultPkg = componentBase + '/gk-jquerymobile/',
     requireConfig = {
@@ -104,12 +64,25 @@
   var context, defined, status;
 
   function moduleConfig(componentBase) {
-    var cfg = {};
+    var cfg = {},
+      loaderCfg = {
+        lib: {
+          dirname: dirname,
+          normalize: normalize,
+          isAbsolute: isAbsolute,
+          absolute: absolute,
+          each: each,
+          isFunction: isFunction,
+          $: $
+        }
+      };
     cfg[componentBase + '/require-text/text'] = {
       useXhr: function () {
         return true;
       }
     };
+    cfg[componentBase + '/gk-loader/element/loader'] = loaderCfg;
+    cfg[componentBase + '/gk-loader/widget/loader'] = loaderCfg;
     return cfg;
   }
 
@@ -166,7 +139,7 @@
   function toModuleIds(components) {
     var ret = [];
     each(components, function (c) {
-      c = urllib.absolute(c, currloc);
+      c = absolute(c, currloc);
       if (c.endsWith('.html')) {
         c = c.substr(0, c.length - 5);
       }
@@ -236,6 +209,47 @@
     }
     scriptCfg.callback();
   });
+
+  function dirname(url, level) {
+    return url.split('?')[0].split('/').slice(0, level || -1).join('/');
+  }
+
+  function normalize(path) {
+    var parts = path.split('://'),
+      host = '',
+      result = [],
+      p;
+    if (parts.length > 1) {
+      host = parts[0] + '://' + parts[1].split('/')[0];
+      path = path.substr(host.length);
+    }
+    path = path.replace(/\/+/g, '/');
+    if (path.indexOf('/') === 0) {
+      host += '/';
+      path = path.substr(1);
+    }
+    parts = path.split('/');
+    while (p = parts.shift()) {
+      if (p === '..') {
+        result.pop();
+      } else if (p !== '.') {
+        result.push(p);
+      }
+    }
+    return host + result.join('/');
+  }
+
+  function isAbsolute(s) {
+    s = s.toLowerCase();
+    return s.indexOf('http://') === 0 || s.indexOf('https://') === 0 || s.indexOf('data:') === 0 || s[0] === '/';
+  }
+
+  function absolute(url, base) {
+    if (!isAbsolute(url)) {
+      url = normalize((base || '') + '/' + url);
+    }
+    return url;
+  }
 
   function each(ary, iterator) {
     var nativeForEach = Array.prototype.forEach,

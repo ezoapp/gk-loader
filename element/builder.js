@@ -12,6 +12,12 @@ define(function (localRequire, exports, module) {
   var elementExt = '.html',
     buildMap = {};
 
+  var codeGen = {
+    registerElement: function (template) {
+      return ';function registerElement(n,c){$.gk.registerElement(n,\'' + template + '\',c)}';
+    }
+  };
+
   function processScripts($scripts, config) {
     var addScript = function (s, var_) {
       config.deps.push(s);
@@ -62,17 +68,14 @@ define(function (localRequire, exports, module) {
   }
 
   function processModuleText($module, config) {
-    var generateRegCode = function (template) {
-      return 'function registerElement(n,c){$.gk.registerElement(n,\'' + template + '\',c)}';
-    };
-    config.moduleText = generateRegCode(config.template) + ($module.length ? $module.eq(0).html() : '');
+    config.moduleText = codeGen.registerElement(config.template) + ($module.length ? $module.eq(0).html() : '');
   }
 
   function wrapUp(config) {
-    return trimNewline(config.script) +
-      'define(' + JSON.stringify(config.deps) + ', function(' + config.vars.join() + '){' +
+    return '(function(){' + trimNewline(config.script) +
+      ';define(' + JSON.stringify(config.deps) + ',function(' + config.vars.join() + '){' +
       config.moduleText +
-      '});';
+      '});}())';
   }
 
   function generateCode(src, config) {

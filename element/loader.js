@@ -1,53 +1,24 @@
-(function (define, $) {
+define(['module'], function (module) {
 
   'use strict';
 
-  var urllib = {
-    dirname: function (url, level) {
-      return url.split('?')[0].split('/').slice(0, level || -1).join('/');
-    },
-    normalize: function (path) {
-      var parts = path.split('://'),
-        host = '',
-        result = [],
-        p;
-      if (parts.length > 1) {
-        host = parts[0] + '://' + parts[1].split('/')[0];
-        path = path.substr(host.length);
-      }
-      path = path.replace(/\/+/g, '/');
-      if (path.indexOf('/') === 0) {
-        host += '/';
-        path = path.substr(1);
-      }
-      parts = path.split('/');
-      while (p = parts.shift()) {
-        if (p === '..') {
-          result.pop();
-        } else if (p !== '.') {
-          result.push(p);
-        }
-      }
-      return host + result.join('/');
-    },
-    isAbsolute: function (s) {
-      s = s.toLowerCase();
-      return s.indexOf('http://') === 0 || s.indexOf('https://') === 0 || s.indexOf('data:') === 0 || s[0] === '/';
-    },
-    absolute: function (url, base) {
-      if (!urllib.isAbsolute(url)) {
-        url = urllib.normalize((base || '') + '/' + url);
-      }
-      return url;
+  var elementExt = '.html',
+    moduleConfig = module.config(),
+    lib = moduleConfig.lib,
+    normalize = lib.normalize,
+    absolute = lib.absolute,
+    $ = lib.$,
+    $gk = $.gk;
+
+  var codeGen = {
+    registerElement: function (template) {
+      return ';function registerElement(n,c){$.gk.registerElement(n,\'' + template + '\',c)}';
     }
   };
 
-  var elementExt = '.html',
-    normalize = urllib.normalize,
-    absolute = urllib.absolute;
-
-  $.gk.registerElement = function (name, tpl, clazz) {
-    $.gk.registry(name, {
+  $gk.registerElement = function (name, tpl, clazz) {
+    $gk.createTag([name]);
+    $gk.registry(name, {
       template: tpl,
       script: function () {
         var props = Object.keys(clazz || {});
@@ -120,17 +91,14 @@
   }
 
   function processModuleText($module, config) {
-    var generateRegCode = function (template) {
-      return 'function registerElement(n,c){$.gk.registerElement(n,\'' + template + '\',c)}';
-    };
-    config.moduleText = generateRegCode(config.template) + ($module.length ? $module[0].text : '');
+    config.moduleText = codeGen.registerElement(config.template) + ($module.length ? $module[0].text : '');
   }
 
   function wrapUp(config) {
-    return 'var moduleId="' + config.moduleId + '";' + trimNewline(config.script) +
-      'define(' + JSON.stringify(config.deps) + ', function(' + config.vars.join() + '){' +
+    return '(function(){' + trimNewline(config.script) +
+      ';define(' + JSON.stringify(config.deps) + ',function(' + config.vars.join() + '){' +
       config.moduleText +
-      '});';
+      '});}())';
   }
 
   function generateCode(src, config) {
@@ -147,7 +115,7 @@
     return wrapUp(config);
   }
 
-  define({
+  return {
     load: function (name, require, onload, config) {
       require(['@text!' + name + elementExt], function (src) {
         var moduleCfg = {
@@ -165,6 +133,6 @@
     normalize: normalize,
 
     pluginBuilder: './builder'
-  });
+  };
 
-}(define, jQuery));
+});

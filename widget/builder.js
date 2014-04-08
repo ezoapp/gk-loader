@@ -9,7 +9,7 @@ define(function (localRequire, exports, module) {
     buildMap = {};
 
   function generateCode(src) {
-    return uglifyjs.minify('define(function(){return ' + src + '})', {
+    return uglifyjs.minify(';define(function(){return ' + src + '})', {
       fromString: true
     }).code;
   }
