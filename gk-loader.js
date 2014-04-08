@@ -96,11 +96,22 @@
           '@wdgt': componentBase + '/gk-loader/widget/loader'
         }
       },
+      config: moduleConfig(componentBase),
       skipDataMain: true
     },
     scriptCfg = parseConfig(script);
 
   var context, defined, status;
+
+  function moduleConfig(componentBase) {
+    var cfg = {};
+    cfg[componentBase + '/require-text/text'] = {
+      useXhr: function () {
+        return true;
+      }
+    };
+    return cfg;
+  }
 
   function parseConfig(script) {
     var init = script.getAttribute('init'),
