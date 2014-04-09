@@ -15,6 +15,11 @@ define(function (localRequire, exports, module) {
   var codeGen = {
     registerElement: function (template) {
       return ';function registerElement(n,c){$.gk.registerElement(n,\'' + template + '\',c)}';
+    },
+    moduleInfo: function (id) {
+      return ';var module=' + JSON.stringify({
+        name: id
+      }) + ';';
     }
   };
 
@@ -72,10 +77,10 @@ define(function (localRequire, exports, module) {
   }
 
   function wrapUp(config) {
-    return '(function(){' + trimNewline(config.script) +
+    return '(function(){' + codeGen.moduleInfo(config.moduleId) + trimNewline(config.script) +
       ';define(' + JSON.stringify(config.deps) + ',function(' + config.vars.join() + '){' +
       config.moduleText +
-      '});}())';
+      '})}())';
   }
 
   function generateCode(src, config) {
