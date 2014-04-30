@@ -3,114 +3,105 @@ define(function (localRequire, exports, module) {
   'use strict';
 
   var $ = require.nodeRequire('cheerio'),
-    uglifyjs = require.nodeRequire('uglify-js'),
     utils = require.nodeRequire(module.uri + '/../../lib/utils'),
-    absoluteId = utils.absoluteId,
+    loadUrl = utils.loadUrl,
+    trimHtml = utils.trimHtml,
     trimNewline = utils.trimNewline,
-    trimHtml = utils.trimHtml;
+    each = utils.each;
 
   var elementExt = '.html',
     buildMap = {};
 
   var codeGen = {
+    requireVariables: function (deps) {
+      var ret = [];
+      each(deps, function (dep) {
+        ret.push('require("' + dep + '")');
+      });
+      return ret.join(';');
+    },
     registerElement: function (template) {
-      return ';function registerElement(n,c){$.gk.registerElement(n,\'' + template + '\',c)}';
+      return 'function registerElement(n,c){$.gk.registerElement(n,\'' + template + '\',c)}';
     },
     moduleInfo: function (id) {
-      return ';var module=' + JSON.stringify({
-        name: id
-      }) + ';';
+      return 'var module=' + JSON.stringify({
+        id: id
+      });
     }
   };
 
-  function processScripts($scripts, config) {
-    var addScript = function (s, var_) {
-      config.deps.push(s);
-      if (var_) {
-        config.vars.push(var_);
+  function processLinkElements($linkEles, config) {
+    $linkEles.each(function (idx, link) {
+      var href = link.attribs.href;
+      if (href) {
+        config.deps.push(loadUrl(href, config.moduleId + '/../'));
       }
-    };
-    $scripts.each(function (idx, script) {
-      var path = script.attribs.path,
-        src = script.attribs.src,
-        var_ = script.attribs.
-      var;
-      if (path) {
-        addScript(path, var_);
-      } else if (src) {
-        src = absoluteId(config.moduleId, src, 'js');
-        addScript(src, var_);
-      } else {
-        config.script += $(script).html();
-      }
+      $(link).remove();
     });
   }
 
-  function processLinkElements($linkEles, config) {
-    $linkEles.each(function (idx, link) {
-      var rel = link.attribs.rel,
-        href = link.attribs.href;
-      if (href) {
-        if (rel === 'import') {
-          config.deps.push('@html!' + absoluteId(config.moduleId, href, 'html'));
-        } else if (rel === 'stylesheet') {
-          config.deps.push('@css!' + absoluteId(config.moduleId, href, 'css'));
-        }
+  function processScripts($scripts, config) {
+    var srces = [],
+      srclen;
+    $scripts.each(function (idx, script) {
+      var src = script.attribs.src;
+      if (src) {
+        srces.push(loadUrl(src, config.moduleId + '/../'));
+      } else {
+        config.script += $(script).text();
       }
     });
+    srclen = srces.length;
+    if (srclen) {
+      config.deps.push(srces[srclen - 1]);
+    }
   }
 
   function processTemplate($template, config) {
-    var $links;
-    if (!$template.length) {
-      return;
-    }
-    $template = $('<div>' + $template.eq(0).html() + '</div>');
-    $links = $template.children('link');
-    processLinkElements($links, config);
-    $links.remove();
-    config.template = trimHtml(trimNewline($template.eq(0).html()));
+    var $tmp = $('<div>' + $template.html() + '</div>');
+    processLinkElements($tmp.find('link'), config);
+    config.template = trimHtml(trimNewline($tmp.html()));
+    $template.html($tmp.html());
   }
 
   function processModuleText($module, config) {
-    config.moduleText = codeGen.registerElement(config.template) + ($module.length ? $module.eq(0).html() : '');
+    config.moduleText = codeGen.requireVariables(config.deps) + ';' + codeGen.registerElement(config.template) + ($module.length ? $module.text() : '');
   }
 
   function wrapUp(config) {
-    return '(function(){' + codeGen.moduleInfo(config.moduleId) + trimNewline(config.script) +
-      ';define(' + JSON.stringify(config.deps) + ',function(' + config.vars.join() + '){' +
+    var code = '+(function(){' + codeGen.moduleInfo(config.moduleId) + ';' + trimNewline(config.script) +
+      ';define(function(' + config.vars.join() + '){' +
       config.moduleText +
-      '})}())';
+      '})}());';
+    return code;
   }
 
   function generateCode(src, config) {
     var $html = $('<div>' + src + '</div>'),
       $scripts = $html.children('script'),
-      $linkEles = $html.children('link'),
+      $linkEles = $html.find('link'),
       $ele = $html.children('element'),
       $template = $ele.children('template'),
       $module = $ele.children('script');
-    processScripts($scripts, config);
     processLinkElements($linkEles, config);
+    processScripts($scripts, config);
     processTemplate($template, config);
     processModuleText($module, config);
-    return uglifyjs.minify(wrapUp(config), {
-      fromString: true
-    }).code;
+    return wrapUp(config);
   }
 
   return {
     load: function (name, req, onload, config) {
       var src = utils.loadFile(req.toUrl(name + elementExt)),
-        cfg = {
-          deps: ['require', 'exports', 'module'],
+        moduleCfg = {
+          deps: [],
           vars: ['require', 'exports', 'module'],
           moduleId: name,
           template: '',
           moduleText: '',
           script: ''
         }, code;
-      code = generateCode(src, cfg);
+      code = generateCode(src, moduleCfg);
       buildMap[name] = code;
       onload.fromText(code);
     },

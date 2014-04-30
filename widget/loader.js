@@ -8,7 +8,7 @@ define(['module'], function (module) {
     normalize = lib.normalize;
 
   function text(data) {
-    return ';define(function(){return ' + data + '})';
+    return 'define(function(){return ' + data + '});';
   }
 
   return {

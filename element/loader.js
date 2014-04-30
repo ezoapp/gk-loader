@@ -3,26 +3,41 @@ define(['module'], function (module) {
   'use strict';
 
   var elementExt = '.html',
+    domParser = getDOMParser(),
+    scpRex = /<(\/|)script/g,
+    gkScp = domParser ? 'script' : 'gk__script__tag',
+    gkScpRex = new RegExp(gkScp, 'g'),
     moduleConfig = module.config(),
     lib = moduleConfig.lib,
     normalize = lib.normalize,
-    absolute = lib.absolute,
+    loadUrl = lib.loadUrl,
+    trimHtml = lib.trimHtml,
+    trimNewline = lib.trimNewline,
+    each = lib.each,
     $ = lib.$,
     $gk = $.gk;
 
+  $gk.createTag(['element', 'template', gkScp]);
+
   var codeGen = {
+    requireVariables: function (deps) {
+      var ret = [];
+      each(deps, function (dep) {
+        ret.push('require("' + dep + '")');
+      });
+      return ret.join(';');
+    },
     registerElement: function (template) {
-      return ';function registerElement(n,c){$.gk.registerElement(n,\'' + template + '\',c)}';
+      return 'function registerElement(n,c){$.gk.registerElement(n,\'' + template + '\',c)}';
     },
     moduleInfo: function (id) {
-      return ';var module=' + JSON.stringify({
-        name: id
-      }) + ';';
+      return 'var module=' + JSON.stringify({
+        id: id
+      });
     }
   };
 
   $gk.registerElement = function (name, tpl, clazz) {
-    $gk.createTag([name]);
     $gk.registry(name, {
       template: tpl,
       script: function () {
@@ -34,89 +49,101 @@ define(['module'], function (module) {
     });
   };
 
-  function trimHtml(s) {
-    return s.replace(/<!--[\s\S]*?-->/gm, '').replace(/>\s+</gm, '><');
+  function getDOMParser() {
+    if (window.DOMParser) {
+      return new DOMParser();
+    }
   }
 
-  function trimNewline(s) {
-    return s.replace(/\s*(\r\n|\n|\r)\s*/gm, '');
+  function createElement(src) {
+    if (domParser) {
+      return domParser.parseFromString('<body>' + src + '</body>', 'text/html').querySelector('body');
+    } else {
+      var node = document.createElement('div');
+      node.style.display = 'none';
+      document.body.appendChild(node);
+      node.innerHTML = src.replace(scpRex, '<$1' + gkScp);
+      return node;
+    }
   }
 
-  function absoluteId(moduleId, url, ext) {
-    url = absolute(url, moduleId + '/../');
-    return url.substr(0, url.length - ext.length - 1);
-  }
-
-  function processScripts($scripts, config) {
-    var addScript = function (s, var_) {
-      config.deps.push(s);
-      if (var_) {
-        config.vars.push(var_);
-      }
-    };
-    $scripts.each(function (idx, script) {
-      var path = script.getAttribute('path'),
-        src = script.getAttribute('src'),
-        var_ = script.getAttribute('var');
-      if (path) {
-        addScript(path, var_);
-      } else if (src) {
-        src = absoluteId(config.moduleId, src, 'js');
-        addScript(src, var_);
-      } else {
-        config.script += script.text;
-      }
-    });
+  function removeElement(ele) {
+    if (!domParser) {
+      document.body.removeChild(ele);
+    }
   }
 
   function processLinkElements($linkEles, config) {
     $linkEles.each(function (idx, link) {
-      var rel = link.getAttribute('rel'),
-        href = link.getAttribute('href');
+      var href = link.getAttribute('href');
       if (href) {
-        if (rel === 'import') {
-          config.deps.push('@html!' + absoluteId(config.moduleId, href, 'html'));
-        } else if (rel === 'stylesheet') {
-          config.deps.push('@css!' + absoluteId(config.moduleId, href, 'css'));
-        }
+        config.deps.push(loadUrl(href, config.moduleId + '/../'));
       }
+      link.parentNode.removeChild(link);
     });
   }
 
-  function processTemplate($template, config) {
-    var $links;
-    if (!$template.length) {
-      return;
+  function processScripts($scripts, config) {
+    var srces = [],
+      srclen,
+      shim = {},
+      cfg = {
+        context: 'gk'
+      };
+    $scripts.each(function (idx, script) {
+      var src = script.getAttribute('src');
+      if (src) {
+        srces.push(loadUrl(src, config.moduleId + '/../'));
+      } else {
+        config.script += $(script).text();
+      }
+    });
+    srclen = srces.length;
+    if (srclen) {
+      config.deps.push(srces[srclen - 1]);
+      if (srclen > 1) {
+        for (var i = srclen - 1; i > 0; i -= 1) {
+          shim[srces[i]] = [srces[i - 1]];
+        }
+        cfg.shim = shim;
+        config.script = 'requirejs.config(' + JSON.stringify(cfg) + ');' + config.script;
+      }
     }
-    $template = $('<div>' + $template[0].innerHTML + '</div>');
-    $links = $template.children('link');
-    processLinkElements($links, config);
-    $links.remove();
-    config.template = trimHtml(trimNewline($template[0].innerHTML));
+  }
+
+  function processTemplate($template, config) {
+    var $tmp = $('<div>' + $template.html() + '</div>');
+    processLinkElements($tmp.find('link'), config);
+    config.template = trimHtml(trimNewline($tmp.html()));
+    $template.html($tmp.html());
   }
 
   function processModuleText($module, config) {
-    config.moduleText = codeGen.registerElement(config.template) + ($module.length ? $module[0].text : '');
+    config.moduleText = codeGen.requireVariables(config.deps) + ';' + codeGen.registerElement(config.template) + ($module.length ? $module.text() : '');
   }
 
   function wrapUp(config) {
-    return '(function(){' + codeGen.moduleInfo(config.moduleId) + trimNewline(config.script) +
-      ';define(' + JSON.stringify(config.deps) + ',function(' + config.vars.join() + '){' +
+    var code = '+(function(){' + codeGen.moduleInfo(config.moduleId) + ';' + trimNewline(config.script) +
+      ';define(function(' + config.vars.join() + '){' +
       config.moduleText +
-      '})}())';
+      '})}());';
+    code = code.replace(gkScpRex, 'script');
+    return code;
   }
 
   function generateCode(src, config) {
-    var $html = $('<div>' + src + '</div>'),
-      $scripts = $html.children('script'),
-      $linkEles = $html.children('link'),
+    var ele = createElement(src),
+      $html = $(ele),
+      $scripts = $html.children(gkScp),
+      $linkEles = $html.find('link'),
       $ele = $html.children('element'),
       $template = $ele.children('template'),
-      $module = $ele.children('script');
-    processScripts($scripts, config);
+      $module = $ele.children(gkScp);
     processLinkElements($linkEles, config);
+    processScripts($scripts, config);
     processTemplate($template, config);
     processModuleText($module, config);
+    removeElement(ele);
     return wrapUp(config);
   }
 
@@ -124,7 +151,7 @@ define(['module'], function (module) {
     load: function (name, require, onload, config) {
       require(['@text!' + name + elementExt], function (src) {
         var moduleCfg = {
-          deps: ['require', 'exports', 'module'],
+          deps: [],
           vars: ['require', 'exports', 'module'],
           moduleId: name,
           template: '',

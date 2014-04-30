@@ -14,7 +14,7 @@
   "dependencies": {
     "requirejs": "master",
     "require-css": "master",
-    "require-text": "https://github.com/requirejs/text.git#latest",
+    "require-text": "https://github.com/ezoapp/require-text.git#gk-fix",
     "jquery.gk": "master"
   }
 }
