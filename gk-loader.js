@@ -4,7 +4,7 @@
 
   // before minification change this to '.min'
 
-  var runMode = '';
+  var runMode = '.min';
 
   // monkey patching for ie8
 
@@ -361,12 +361,14 @@
   }
 
   function initGK() {
+    var allDone = true;
     each(Object.keys(status), function (m) {
       if (status[m] !== 'done') {
-        return;
+        allDone = false;
+        return true;
       }
     });
-    $.gk.init();
+    allDone && $.gk.init();
   }
 
 }(window, requirejs, jQuery));

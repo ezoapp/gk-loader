@@ -20,8 +20,7 @@ define(['module'], function (module) {
 
     DOMParser_proto.parseFromString = function (markup, type) {
       if (/^\s*text\/html\s*(?:;|$)/i.test(type)) {
-        var
-        doc = document.implementation.createHTMLDocument("");
+        var doc = document.implementation.createHTMLDocument("");
         if (markup.toLowerCase().indexOf('<!doctype') > -1) {
           doc.documentElement.innerHTML = markup;
         } else {
