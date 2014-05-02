@@ -154,7 +154,7 @@ define(['module'], function (module) {
   }
 
   function wrapUp(config) {
-    var code = '+(function(){' + codeGen.moduleInfo(config.moduleId) + ';' + trimNewline(config.script) +
+    var code = '(function(){' + codeGen.moduleInfo(config.moduleId) + ';' + trimNewline(config.script) +
       ';define(function(' + config.vars.join() + '){' +
       config.moduleText +
       '})}());';
@@ -195,7 +195,7 @@ define(['module'], function (module) {
 
     normalize: normalize,
 
-    pluginBuilder: './builder'
+    pluginBuilder: './html-build'
   };
 
 });

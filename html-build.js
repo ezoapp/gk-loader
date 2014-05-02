@@ -3,7 +3,7 @@ define(function (localRequire, exports, module) {
   'use strict';
 
   var $ = require.nodeRequire('cheerio'),
-    utils = require.nodeRequire(module.uri + '/../../lib/utils'),
+    utils = require.nodeRequire(module.uri + '/../lib/utils'),
     loadUrl = utils.loadUrl,
     trimHtml = utils.trimHtml,
     trimNewline = utils.trimNewline,
@@ -69,7 +69,7 @@ define(function (localRequire, exports, module) {
   }
 
   function wrapUp(config) {
-    var code = '+(function(){' + codeGen.moduleInfo(config.moduleId) + ';' + trimNewline(config.script) +
+    var code = '(function(){' + codeGen.moduleInfo(config.moduleId) + ';' + trimNewline(config.script) +
       ';define(function(' + config.vars.join() + '){' +
       config.moduleText +
       '})}());';

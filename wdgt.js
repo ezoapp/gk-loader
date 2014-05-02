@@ -20,7 +20,7 @@ define(['module'], function (module) {
 
     normalize: normalize,
 
-    pluginBuilder: './builder'
+    pluginBuilder: './wdgt-build'
   };
 
 });

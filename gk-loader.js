@@ -156,8 +156,8 @@
         '*': {
           '@css': pluginBase + '/require-css/css' + runMode,
           '@text': pluginBase + '/require-text/text' + runMode,
-          '@html': pluginBase + '/gk-loader/element/loader' + runMode,
-          '@wdgt': pluginBase + '/gk-loader/widget/loader' + runMode
+          '@html': pluginBase + '/gk-loader/html' + runMode,
+          '@wdgt': pluginBase + '/gk-loader/wdgt' + runMode
         }
       },
       config: pluginConfig(pluginBase),
@@ -227,8 +227,8 @@
         }
       }())
     };
-    cfg[base + '/gk-loader/element/loader' + runMode] = loaderCfg;
-    cfg[base + '/gk-loader/widget/loader' + runMode] = loaderCfg;
+    cfg[base + '/gk-loader/html' + runMode] = loaderCfg;
+    cfg[base + '/gk-loader/wdgt' + runMode] = loaderCfg;
     return cfg;
   }
 

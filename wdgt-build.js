@@ -2,7 +2,7 @@ define(function (localRequire, exports, module) {
 
   'use strict';
 
-  var utils = require.nodeRequire(module.uri + '/../../lib/utils'),
+  var utils = require.nodeRequire(module.uri + '/../lib/utils'),
     uglifyjs = require.nodeRequire('uglify-js');
 
   var widgetExt = '.js',
