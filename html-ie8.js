@@ -70,114 +70,117 @@ define(['module', './lib/simplehtmlparser.min'], function (module) {
       }
       return map;
     }()),
+
     htmlparser = new SimpleHtmlParser(),
 
     MockNode = function () {
-      var l = arguments.length,
-        self = this;
-      if (l > 1) {
-        this.tagName = arguments[0];
-        this.attribs = (function (attrs) {
-          var obj = {};
-          each(attrs, function (attr) {
-            obj[attr.name] = attr.value;
-          });
-          return obj;
-        }(arguments[1]));
-        this.childNodes = [];
-        this.removeChild = function (node) {
-          var idx = self.childNodes.indexOf(node);
-          if (idx !== -1) {
-            self.childNodes.splice(idx, 1);
-          }
-        };
-        this.innerHTML = function () {
-          var val = '';
-          each(self.childNodes, function (child) {
-            val += child.outerHTML();
-          });
-          return val;
-        };
-        this.outerHTML = function () {
-          var tag = self.tagName,
-            attrVal = '',
-            html = '';
-          each(Object.keys(self.attribs), function (attr) {
-            attrVal += (' ' + attr + '="' + self.attribs[attr] + '"');
-          });
-          html = '<' + tag + attrVal + '>' + self.innerHTML();
-          if (!(tag.toLowerCase() in voidMap)) {
-            html += '</' + tag + '>';
-          }
-          return html;
-        };
-      } else {
-        this.content = arguments[0];
-        this.innerHTML = this.outerHTML = function () {
-          return self.content;
-        };
-      }
+      this.tagName = arguments[0];
+      this.attribs = (function (attrs) {
+        var obj = {};
+        each(attrs, function (attr) {
+          obj[attr.name] = attr.value;
+        });
+        return obj;
+      }(arguments[1]));
+      this.childNodes = [];
     },
+    MockContentNode = function () {
+      this.content = arguments[0];
+    },
+    MockDOMParser = function () {},
+    protoNode = MockNode.prototype,
+    protoContentNode = MockContentNode.prototype,
+    protoDOMParser = MockDOMParser.prototype;
 
-    MockDOMParser = (function () {
-      function newContext() {
-        return [new MockNode('ROOT', [])];
-      }
+  protoNode.removeChild = function (node) {
+    var idx = this.childNodes.indexOf(node);
+    if (idx !== -1) {
+      this.childNodes.splice(idx, 1);
+    }
+  };
+  protoNode.innerHTML = function () {
+    var val = '';
+    each(this.childNodes, function (child) {
+      val += child.outerHTML();
+    });
+    return val;
+  };
+  protoNode.outerHTML = function () {
+    var self = this,
+      tag = self.tagName,
+      attrVal = '',
+      html = '';
+    each(Object.keys(self.attribs), function (attr) {
+      attrVal += (' ' + attr + '="' + self.attribs[attr] + '"');
+    });
+    html = '<' + tag + attrVal + '>' + self.innerHTML();
+    if (!(tag.toLowerCase() in voidMap)) {
+      html += '</' + tag + '>';
+    }
+    return html;
+  };
 
-      function currentNode(ctx) {
-        return ctx[ctx.length - 1];
-      }
+  protoContentNode.innerHTML = protoContentNode.outerHTML = function () {
+    return this.content;
+  };
 
-      function pushContext(ctx, node) {
-        ctx.push(node);
-      }
+  (function () {
+    function newContext() {
+      return [new MockNode('ROOT', [])];
+    }
 
-      function popContext(ctx) {
-        return ctx.pop();
-      }
+    function currentNode(ctx) {
+      return ctx[ctx.length - 1];
+    }
 
-      function parseStartTag(ctx, tag, content, attrs) {
-        var curr = currentNode(ctx),
-          newNode = new MockNode(tag, attrs);
-        newNode.parentNode = curr;
-        curr.childNodes.push(newNode);
-        return newNode;
-      }
+    function pushContext(ctx, node) {
+      ctx.push(node);
+    }
 
-      function parseContent(ctx, content) {
-        var curr = currentNode(ctx),
-          newNode = new MockNode(content);
-        newNode.parentNode = curr;
-        curr.childNodes.push(newNode);
-        return newNode;
-      }
+    function popContext(ctx) {
+      return ctx.pop();
+    }
 
-      return function () {
-        this.parse = function (code) {
-          var ctx = newContext();
-          htmlparser.parse(code, {
-            startElement: function (tag, content, attrs) {
-              var node = parseStartTag(ctx, tag, content, attrs);
-              if ((!(tag.toLowerCase() in voidMap)) && (content.substr(content.length - 2) !== '/>')) {
-                pushContext(ctx, node);
-              }
-            },
-            endElement: function (tag, content) {
-              popContext(ctx);
-            },
-            characters: function (chars) {
-              chars = chars.trim();
-              if (chars) {
-                parseContent(ctx, chars);
-              }
-            }
-          });
-          return ctx[0];
-        };
-      };
-    }()),
+    function parseStartTag(ctx, tag, content, attrs) {
+      var curr = currentNode(ctx),
+        newNode = new MockNode(tag, attrs);
+      newNode.parentNode = curr;
+      curr.childNodes.push(newNode);
+      return newNode;
+    }
 
-    parser = new MockDOMParser();
+    function parseContent(ctx, content) {
+      var curr = currentNode(ctx),
+        newNode = new MockContentNode(content);
+      newNode.parentNode = curr;
+      curr.childNodes.push(newNode);
+      return newNode;
+    }
+
+    protoDOMParser.parse = function (code) {
+      var ctx = newContext();
+      htmlparser.parse(code, {
+        startElement: function (tag, content, attrs) {
+          var node = parseStartTag(ctx, tag, content, attrs);
+          if ((!(tag.toLowerCase() in voidMap)) && (content.substr(content.length - 2) !== '/>')) {
+            pushContext(ctx, node);
+          }
+        },
+        endElement: function (tag, content) {
+          popContext(ctx);
+        },
+        characters: function (chars) {
+          chars = chars.trim();
+          if (chars) {
+            parseContent(ctx, chars);
+          }
+        }
+      });
+      return ctx[0];
+    };
+  }());
+
+  var parser = new MockDOMParser();
 
   var codeGen = {
     requireVariables: function (deps) {
