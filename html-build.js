@@ -30,8 +30,8 @@ define(function (localRequire, exports, module) {
     }
   };
 
-  function processLinkElements($linkEles, config) {
-    $linkEles.each(function (idx, link) {
+  function processLinkElements($links, config) {
+    $links.each(function (idx, link) {
       var href = link.attribs.href;
       if (href) {
         config.deps.push(loadUrl(href, config.moduleId + '/../'));
@@ -69,21 +69,20 @@ define(function (localRequire, exports, module) {
   }
 
   function wrapUp(config) {
-    var code = '(function(){' + codeGen.moduleInfo(config.moduleId) + ';' + trimNewline(config.script) +
+    return '(function(){' + codeGen.moduleInfo(config.moduleId) + ';' + trimNewline(config.script) +
       ';define(function(' + config.vars.join() + '){' +
       config.moduleText +
       '})}());';
-    return code;
   }
 
   function generateCode(src, config) {
     var $html = $('<div>' + src + '</div>'),
+      $links = $html.find('link'),
       $scripts = $html.children('script'),
-      $linkEles = $html.find('link'),
-      $ele = $html.children('element'),
-      $template = $ele.children('template'),
+      $ele = $html.children('element').first(),
+      $template = $ele.children('template').first(),
       $module = $ele.children('script');
-    processLinkElements($linkEles, config);
+    processLinkElements($links, config);
     processScripts($scripts, config);
     processTemplate($template, config);
     processModuleText($module, config);

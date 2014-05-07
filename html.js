@@ -2,25 +2,23 @@ define(['module'], function (module) {
 
   'use strict';
 
-  (function (DOMParser) {
-    if (!DOMParser) {
-      return;
-    }
-    var DOMParser_proto = DOMParser.prototype,
-      real_parseFromString = DOMParser_proto.parseFromString;
+  var parser = new window.DOMParser();
+
+  (function (parser) {
+    var proto_parseFromString = window.DOMParser.prototype.parseFromString;
 
     // Firefox/Opera/IE throw errors on unsupported types
     try {
       // WebKit returns null on unsupported types
-      if ((new DOMParser).parseFromString("", "text/html")) {
+      if (parser.parseFromString('', 'text/html')) {
         // text/html parsing is natively supported
         return;
       }
     } catch (ex) {}
 
-    DOMParser_proto.parseFromString = function (markup, type) {
+    parser.parseFromString = function (markup, type) {
       if (/^\s*text\/html\s*(?:;|$)/i.test(type)) {
-        var doc = document.implementation.createHTMLDocument("");
+        var doc = document.implementation.createHTMLDocument('');
         if (markup.toLowerCase().indexOf('<!doctype') > -1) {
           doc.documentElement.innerHTML = markup;
         } else {
@@ -28,16 +26,12 @@ define(['module'], function (module) {
         }
         return doc;
       } else {
-        return real_parseFromString.apply(this, arguments);
+        return proto_parseFromString.apply(this, arguments);
       }
     };
-  }(window.DOMParser));
+  }(parser));
 
   var elementExt = '.html',
-    domParser = getDOMParser(),
-    scpRex = /<(\/|)script/g,
-    gkScp = domParser ? 'script' : 'gk__script__tag',
-    gkScpRex = new RegExp(gkScp, 'g'),
     moduleConfig = module.config(),
     lib = moduleConfig.lib,
     normalize = lib.normalize,
@@ -47,8 +41,6 @@ define(['module'], function (module) {
     each = lib.each,
     $ = lib.$,
     $gk = $.gk;
-
-  $gk.createTag(['element', 'template', gkScp]);
 
   var codeGen = {
     requireVariables: function (deps) {
@@ -80,37 +72,17 @@ define(['module'], function (module) {
     });
   };
 
-  function getDOMParser() {
-    if (window.DOMParser) {
-      return new DOMParser();
-    }
+  function parseHTML(src) {
+    return parser.parseFromString('<body>' + src + '</body>', 'text/html').querySelector('body');
   }
 
-  function createElement(src) {
-    if (domParser) {
-      return domParser.parseFromString('<body>' + src + '</body>', 'text/html').querySelector('body');
-    } else {
-      var node = document.createElement('div');
-      node.style.display = 'none';
-      document.body.appendChild(node);
-      node.innerHTML = src.replace(scpRex, '<$1' + gkScp);
-      return node;
-    }
-  }
-
-  function removeElement(ele) {
-    if (!domParser) {
-      document.body.removeChild(ele);
-    }
-  }
-
-  function processLinkElements($linkEles, config) {
-    $linkEles.each(function (idx, link) {
+  function processLinkElements($links, config) {
+    $links.each(function (idx, link) {
       var href = link.getAttribute('href');
       if (href) {
         config.deps.push(loadUrl(href, config.moduleId + '/../'));
       }
-      link.parentNode.removeChild(link);
+      $(link).remove();
     });
   }
 
@@ -154,27 +126,24 @@ define(['module'], function (module) {
   }
 
   function wrapUp(config) {
-    var code = '(function(){' + codeGen.moduleInfo(config.moduleId) + ';' + trimNewline(config.script) +
+    return '(function(){' + codeGen.moduleInfo(config.moduleId) + ';' + trimNewline(config.script) +
       ';define(function(' + config.vars.join() + '){' +
       config.moduleText +
       '})}());';
-    code = code.replace(gkScpRex, 'script');
-    return code;
   }
 
   function generateCode(src, config) {
-    var ele = createElement(src),
-      $html = $(ele),
-      $scripts = $html.children(gkScp),
-      $linkEles = $html.find('link'),
-      $ele = $html.children('element'),
-      $template = $ele.children('template'),
-      $module = $ele.children(gkScp);
-    processLinkElements($linkEles, config);
+    var htmlEle = parseHTML(src),
+      $html = $(htmlEle),
+      $links = $html.find('link'),
+      $scripts = $html.children('script'),
+      $ele = $html.children('element').first(),
+      $template = $ele.children('template').first(),
+      $module = $ele.children('script');
+    processLinkElements($links, config);
     processScripts($scripts, config);
     processTemplate($template, config);
     processModuleText($module, config);
-    removeElement(ele);
     return wrapUp(config);
   }
 

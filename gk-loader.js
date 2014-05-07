@@ -149,6 +149,7 @@
     currloc = dirname(wndloc.pathname.substr(1)),
     scptDir = normalize(script.src + '/../../'),
     pluginBase = script.getAttribute('pluginBase') || (scptDir.indexOf(locorigin) === 0 ? scptDir.substr(locorigin.length + 1) : scptDir),
+    htmlPlugin = (window.DOMParser ? 'html' : 'html-ie8') + runMode,
     requireConfig = {
       context: contextName,
       baseUrl: '/',
@@ -156,7 +157,7 @@
         '*': {
           '@css': pluginBase + '/require-css/css' + runMode,
           '@text': pluginBase + '/require-text/text' + runMode,
-          '@html': pluginBase + '/gk-loader/html' + runMode,
+          '@html': pluginBase + '/gk-loader/' + htmlPlugin,
           '@wdgt': pluginBase + '/gk-loader/wdgt' + runMode
         }
       },
@@ -227,7 +228,7 @@
         }
       }())
     };
-    cfg[base + '/gk-loader/html' + runMode] = loaderCfg;
+    cfg[base + '/gk-loader/' + htmlPlugin] = loaderCfg;
     cfg[base + '/gk-loader/wdgt' + runMode] = loaderCfg;
     return cfg;
   }
@@ -284,6 +285,7 @@
     }
     paths = loads.paths;
     ids = loads.ids;
+    checkRegistry();
     if (hasUndefined(ids)) {
       setLoading(ids);
       req(paths, function () {
@@ -302,6 +304,20 @@
     defined = context.defined;
     (context.status = {}) && (status = context.status);
     return req;
+  }
+
+  function checkRegistry() {
+    each(['_', contextName], function (ctx) {
+      var registry = contexts[ctx].registry;
+      each(['gk', 'jquery'], function (key) {
+        var module = registry[key];
+        if (module) {
+          var factory = module.factory;
+          defined[key] = typeof factory === 'function' ? factory() : factory;
+          delete registry[key];
+        }
+      });
+    });
   }
 
   function overwriteMethod(ctx) {
