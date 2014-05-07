@@ -4,6 +4,7 @@ define(function (localRequire, exports, module) {
 
   var $ = require.nodeRequire('cheerio'),
     utils = require.nodeRequire(module.uri + '/../lib/utils'),
+    uglifyjs = require.nodeRequire('uglify-js'),
     loadUrl = utils.loadUrl,
     trimHtml = utils.trimHtml,
     trimNewline = utils.trimNewline,
@@ -86,7 +87,12 @@ define(function (localRequire, exports, module) {
     processScripts($scripts, config);
     processTemplate($template, config);
     processModuleText($module, config);
-    return wrapUp(config);
+    return uglifyjs.minify(wrapUp(config), {
+      fromString: true,
+      mangle: {
+        except: config.vars
+      }
+    }).code;
   }
 
   return {
