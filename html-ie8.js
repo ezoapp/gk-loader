@@ -55,7 +55,6 @@ define(['module', './lib/simplehtmlparser.min'], function (module) {
   var elementExt = '.html',
     moduleConfig = module.config(),
     lib = moduleConfig.lib,
-    normalize = lib.normalize,
     loadUrl = lib.loadUrl,
     trimNewline = lib.trimNewline,
     each = lib.each,
@@ -310,8 +309,6 @@ define(['module', './lib/simplehtmlparser.min'], function (module) {
         onload.fromText(generateCode(src, moduleCfg));
       });
     },
-
-    normalize: normalize,
 
     pluginBuilder: './html-build'
   };

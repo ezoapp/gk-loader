@@ -4,8 +4,7 @@ define(['module'], function (module) {
 
   var widgetExt = '.js',
     moduleConfig = module.config(),
-    lib = moduleConfig.lib,
-    normalize = lib.normalize;
+    lib = moduleConfig.lib;
 
   function text(data) {
     return 'define(function(){return ' + data + '});';
@@ -17,8 +16,6 @@ define(['module'], function (module) {
         onload.fromText(text(data));
       });
     },
-
-    normalize: normalize,
 
     pluginBuilder: './wdgt-build'
   };

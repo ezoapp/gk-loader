@@ -1,6 +1,7 @@
 {
   "name": "gk-loader",
-  "version": "0.0.6",
+  "author": "EZoUI <ezoservice@icsc.com.tw>",
+  "version": "0.0.7",
   "dependencies": {
     "requirejs": "*",
     "uglify-js": "*"

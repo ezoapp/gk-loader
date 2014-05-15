@@ -34,7 +34,6 @@ define(['module'], function (module) {
   var elementExt = '.html',
     moduleConfig = module.config(),
     lib = moduleConfig.lib,
-    normalize = lib.normalize,
     loadUrl = lib.loadUrl,
     trimHtml = lib.trimHtml,
     trimNewline = lib.trimNewline,
@@ -161,8 +160,6 @@ define(['module'], function (module) {
         onload.fromText(generateCode(src, moduleCfg));
       });
     },
-
-    normalize: normalize,
 
     pluginBuilder: './html-build'
   };
