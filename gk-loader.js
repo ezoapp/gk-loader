@@ -143,6 +143,7 @@
 
   var contextName = 'gk',
     script = getScript(),
+    exec = window.eval,
     contexts = requirejs.s.contexts,
     wndloc = window.location,
     locorigin = wndloc.origin,
@@ -237,7 +238,7 @@
     var init = script.getAttribute('init'),
       callback = function () {
         var cb = script.getAttribute('callback');
-        cb && (new Function('return ' + cb)()());
+        cb && exec(cb + '()');
       },
       cfg = {};
     cfg.init = init;
@@ -325,6 +326,7 @@
     ctx.load = function (id, url) {
       return origLoad.apply(ctx, [id, url.split('.').pop() === 'js' ? url : url + '.js']);
     };
+    requirejs.exec = exec;
   }
 
   function isValidArray(ary) {
