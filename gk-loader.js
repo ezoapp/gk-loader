@@ -257,7 +257,7 @@
     param = {
       components: attrs.components ? attrs.components.split(tagSplit) : '',
       gkTags: attrs.gkTags ? attrs.gkTags.split(tagSplit) : '',
-      baseUrl: attrs.baseUrl
+      baseUrl: attrs.baseUrl || ''
     };
   registryGK(param, function (init) {
     if (scriptCfg.init === null || (scriptCfg.init && scriptCfg.init !== 'false')) {
@@ -270,10 +270,10 @@
 
   window.registryGK = registryGK;
 
-  function registryGK(param, callback) {
-    var htmls = param.components,
-      tags = param.gkTags,
-      baseUrl = param.baseUrl || '',
+  function registryGK(obj, callback) {
+    var htmls = obj.components,
+      tags = obj.gkTags,
+      baseUrl = obj.baseUrl || param.baseUrl,
       cb = typeof callback === 'function' ? callback : function () {},
       req = configure(requireConfig),
       loads,
@@ -282,7 +282,7 @@
     if (isValidArray(htmls) || isValidArray(tags)) {
       loads = loadComponents(htmls, tags, baseUrl);
     } else {
-      loads = loadComponents(param, [], baseUrl);
+      loads = loadComponents(obj, [], baseUrl);
     }
     paths = loads.paths;
     ids = loads.ids;
