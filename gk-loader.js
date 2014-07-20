@@ -2,6 +2,13 @@
 
   'use strict';
 
+  var domReady;
+
+  $(document).on('ready', function () {
+    domReady = true;
+    initGK();
+  });
+
   // before minification change this to '.min'
 
   var runMode = '.min';
@@ -386,7 +393,7 @@
         return true;
       }
     });
-    allDone && $.gk.init();
+    domReady && allDone && $.gk.init();
   }
 
 }(window, requirejs, jQuery));
