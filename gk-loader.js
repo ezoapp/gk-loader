@@ -55,7 +55,7 @@
   }
 
   function normalize(path) {
-    var parts = path.split('://'),
+    var parts = (path = addProtocol(path)).split('://'),
       host = '',
       result = [],
       p;
@@ -77,6 +77,10 @@
       }
     }
     return host + result.join('/');
+  }
+
+  function addProtocol(url) {
+    return url.indexOf('//') === 0 ? protocol + url : url;
   }
 
   function isAbsolute(s) {
@@ -145,6 +149,7 @@
     script = getScript(),
     contexts = requirejs.s.contexts,
     wndloc = window.location,
+    protocol = wndloc.protocol,
     locorigin = wndloc.origin,
     currloc = dirname(wndloc.pathname.substr(1)),
     scptDir = normalize(script.src + '/../../'),
