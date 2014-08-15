@@ -86,7 +86,8 @@ define(['module'], function (module) {
   }
 
   function processScripts($scripts, config) {
-    var srces = [],
+    var processShim, currentShim, currentDeps,
+      srces = [],
       srclen,
       shim = {},
       cfg = {
@@ -106,6 +107,15 @@ define(['module'], function (module) {
       if (srclen > 1) {
         for (var i = srclen - 1; i > 0; i -= 1) {
           shim[srces[i]] = [srces[i - 1]];
+        }
+        try {
+          currentShim = requirejs.s.contexts.gk.config.shim;
+          $.each(shim, function eachFunc(key, value) {
+            currentDeps = (currentShim[key] && currentShim[key].deps) || [];
+            shim[key] = value.concat(currentDeps);
+          });
+        } catch (e) {
+          // do nothing
         }
         cfg.shim = shim;
         config.script = 'requirejs.config(' + JSON.stringify(cfg) + ');' + config.script;
