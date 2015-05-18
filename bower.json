@@ -6,7 +6,6 @@
   "main": "gk-loader.js",
   "keywords": [
     "gk",
-    "web-components",
     "loader"
   ],
   "license": "MIT",
